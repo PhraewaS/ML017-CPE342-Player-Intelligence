@@ -1,4 +1,4 @@
-"""Train-only near-duplicate check for the Task 4 image split."""
+"""Build train-only scene matches used by the Task 4 split."""
 
 import argparse
 from pathlib import Path
@@ -8,9 +8,8 @@ import pandas as pd
 from PIL import Image
 from scipy.fft import dctn
 from scipy.ndimage import gaussian_filter
-from sklearn.metrics import f1_score
 
-from t4_rotation_probe import padding_angle
+from image_rotation import padding_angle
 
 
 def descriptor(image):
@@ -78,28 +77,6 @@ def cross_fold_neighbors(vectors, fold, top=3):
     return sims, refs
 
 
-def contact(frame, directory, sim, index, output):
-    from PIL import ImageDraw
-    rng = np.random.default_rng(4)
-    rows = []
-    for lo, hi in [(0.96, 1), (0.9, 0.96), (0.84, 0.9), (0.75, 0.84)]:
-        pool = np.flatnonzero((sim >= lo) & (sim < hi))
-        if len(pool):
-            rows.extend(rng.choice(pool, min(6, len(pool)), replace=False))
-    board = Image.new('RGB', (840, ((len(rows) + 2) // 3) * 112), (0, 0, 0))
-    draw = ImageDraw.Draw(board)
-    for pos, src in enumerate(rows):
-        dst = index[src]
-        x, y = pos % 3 * 280, pos // 3 * 112
-        for align, j in enumerate([src, dst]):
-            row = frame.iloc[j]
-            with Image.open(directory / row.file_name) as pic:
-                board.paste(pic.resize((135, 70)), (x + align * 138, y))
-            draw.text((x + align * 138, y + 70), f'{row.id}: class {row.label}', (255, 255, 255))
-        draw.text((x, y + 84), f'Score {sim[src]:.3f}', (255, 220, 160))
-    board.save(output)
-
-
 def run(project, output):
     folder = project / 'data_task4/train'
     frame = pd.read_csv(project / 'data_task4/train.csv')
@@ -114,20 +91,6 @@ def run(project, output):
     sim, nearest = cross_fold_neighbors(vectors, fold)
     np.savez(output / 't4_scene_retrieval.npz', id=np.asarray(frame.id, dtype='U'),
              sim=sim, nearest=nearest, angle=angles, fold=fold)
-    pred = np.load(reference / 't4_oof_logprob_ens.npy').argmax(1)
-    y = frame.label.to_numpy()
-    s, match = sim[:, 0], y[nearest[:, 0]]
-    bins = [(0, 0.72), (0.72, 0.8), (0.8, 0.86), (0.86, 0.9), (0.9, 0.94), (0.94, 0.97), (0.97, 1.00001)]
-    print('Nearest similarity bin: n, nearest accuracy, OOF accuracy, OOF macro-F1, oracle override wins/losses', flush=True)
-    for lo, hi in bins:
-        ix = (lo <= s) & (s < hi)
-        print((lo, hi), ix.sum(),
-              round(np.mean(match[ix] == y[ix]), 4),
-              round(np.mean(pred[ix] == y[ix]), 4),
-              round(f1_score(y[ix], pred[ix], average='macro'), 4),
-              (ix & (pred != y) & (match == y)).sum(),
-              (ix & (pred == y) & (match != y)).sum(), flush=True)
-    contact(frame, folder, s, nearest[:, 0], output / 't4_scene_match_contact.jpg')
 
 
 if __name__ == '__main__':

@@ -49,10 +49,15 @@ Test images get a 7×7 Gaussian blur (sigma 0.92) before prediction, which remov
 screenshots.
 
 ## 4. DINOv3-Small scene model (Apple-silicon Mac)
+
+Place the original ConvNeXt fold-index directories in `work/review/t4_runs/`. They are included under
+`Task4/convnext_modal/runs/`. The scene builder writes the matching and fingerprint caches used by both split steps.
+
 ```bash
-python Task4/dino/t4_scene_retrieval_audit.py . work/review          # scene fingerprints of train images
-python Task4/dino/t4_independent_split.py . --work work/review --strict      # strict scene-held-out split (t4_independent_split_strict.csv)
-python Task4/dino/t4_backbone_views.py . --work work/review --backbone dinov3 # cached DINOv3 views of train images
+python Task4/dino/t4_scene_retrieval_audit.py . work/review
+python Task4/dino/t4_backbone_views.py . --work work/review --backbone dinov3
+python Task4/dino/t4_independent_split.py . --work work/review
+python Task4/dino/t4_independent_split.py . --work work/review --strict
 python Task4/dino/t4_scene_finetune.py . --split work/review/t4_independent_split_strict.csv --output work/review/t4_scene_dinov3_strict --epochs 5
 python Task4/dino/t4_patch_head.py . --checkpoint work/review/t4_scene_dinov3_strict/best.pt --cache work/review/t4_dinov3_strict_patches.npy --extract
 python Task4/dino/rare_group_weights.py .                           # up-weight rare visual groups
@@ -63,6 +68,8 @@ python Task4/dino/t4_scene_finetune.py . --split work/review/t4_independent_spli
 python Task4/dino/t4_scene_finetune.py . --weights work/review/t4_scene_dinov3_duplicates/best.pt --test-output work/review/t4_scene_dinov3_duplicates/test.npz
 ```
 The blend uses the `clean` (denoised-input) logits from `test.npz`.
+
+The standalone Task 4 comparisons and scene-match report are documented in [experiments](../experiments/README.md).
 
 ## Blend weights
 The weights 0.4 / 0.4 / 0.1 / 0.1 were set step by step:
