@@ -1,0 +1,1 @@
+{"model": "convnext_small.fb_in22k", "h": 160, "w": 288, "bs": 48, "lr": 9.841135256100126e-05, "epochs": 12, "cutmix": 0.6, "mixup": 0.0, "randaug": false, "logit_adjust": true, "sampler": "random", "label_smoothing": 0.0, "drop_path": 0.2}
